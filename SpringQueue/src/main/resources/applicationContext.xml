@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:oxm="http://www.springframework.org/schema/oxm"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:amq="http://activemq.apache.org/schema/core"
+	xsi:schemaLocation=" http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+     http://www.springframework.org/schema/oxm http://www.springframework.org/schema/oxm/spring-oxm-3.0.xsd
+         http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+         http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
+	
+	<context:annotation-config />
+	<context:property-placeholder location="classpath:config.properties" />
+	<context:component-scan base-package="net.mothman.feedgenerator" />
+	
+	<!-- ACTIVEMQ EMBEDDED -->
+	<amq:broker>
+		<amq:transportConnectors>
+			<amq:transportConnector uri="${jms.host}" />
+		</amq:transportConnectors>
+	</amq:broker>
+
+	<!-- JMS CONNECTION -->
+	<bean id="jmsFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+		<property name="brokerURL" value="${jms.host}"/>
+	</bean>
+
+	<bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory" ref="jmsFactory" />
+		<property name="messageConverter" ref="oxmMessageConverter" />
+	</bean>
+	
+	<bean id="jmsTemplateText" class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory" ref="jmsFactory" />
+	</bean>
+
+
+	<!-- ====================================================================================================== -->
+	<!-- QUEUE NAMES -->
+	<!-- ====================================================================================================== -->
+
+	<bean id="queueLinear" class="org.apache.activemq.command.ActiveMQQueue">
+		<constructor-arg value="${jms.queue.linear}" />
+	</bean>
+
+	<bean id="queueVod" class="org.apache.activemq.command.ActiveMQQueue">
+		<constructor-arg value="${jms.queue.vod}" />
+	</bean>
+
+	<!-- ====================================================================================================== -->
+	<!-- JMS LISTENERS -->
+	<!-- ====================================================================================================== -->
+
+	<!-- VOD MESSAGE LISTENER -->
+	<bean id="vodMessageListenerContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="jmsFactory" />
+		<property name="destination" ref="queueVod" />
+		<property name="messageListener" ref="vodMessageListener" />
+		<property name="concurrentConsumers" value="1" />
+	</bean>
+
+	<!-- VOD MESSAGE LISTENER -->
+	<bean id="linearMessageListenerContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="jmsFactory" />
+		<property name="destination" ref="queueLinear" />
+		<property name="messageListener" ref="linearMessageListener" />
+		<property name="concurrentConsumers" value="1" />
+	</bean>
+
+	<!-- ====================================================================================================== -->
+	<!-- JMS MESSAGE CONVERTER -->
+	<!-- ====================================================================================================== -->
+
+	<bean id="oxmMessageConverter"
+		class="org.springframework.jms.support.converter.MarshallingMessageConverter">
+		<property name="marshaller" ref="marshaller" />
+		<property name="unmarshaller" ref="marshaller" />
+	</bean>
+
+	<oxm:jaxb2-marshaller id="marshaller">
+		<oxm:class-to-be-bound name="com.nttdata.feedgenerator.domain.PlayerDetails" />
+	</oxm:jaxb2-marshaller>
+	
+</beans>
